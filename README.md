@@ -7,7 +7,7 @@ Aplikasi manajemen jadwal piket kelas yang bikin ngatur piket jadi lebih gampang
 ### Untuk Siswa
 - **Lapor Piket** - Pilih foto bukti piket dari:
   - 📷 **Kamera** - Ambil foto langsung:
-    - Di laptop/web: Buka webcam laptop (browser akan minta izin akses kamera)
+    - Di laptop/web: kalau dilaptop gabisa, karena project flutter ini khusus mobile
     - Di HP: Buka kamera HP
   - 🖼️ **Galeri/File** - Pilih dari storage:
     - Di laptop/web: File explorer komputer
@@ -104,6 +104,16 @@ git clone https://github.com/username/jadwal_piket_cerdas.git
 cd jadwal_piket_cerdas
 ```
 
+**Atau via Android Studio:**
+
+1. Buka Android Studio
+2. Di halaman welcome, pilih **Get from VCS** (atau File > New > Project from Version Control)
+3. Di kolom URL, paste link repository: `https://github.com/username/jadwal_piket_cerdas.git`
+4. Pilih folder penyimpanan di komputer kamu
+5. Klik **Clone**
+6. Tunggu proses loading & indexing selesai
+7. Kalau muncul pop-up "Pub get", klik **Run 'flutter pub get'**
+
 #### 2. Install Dependencies
 ```bash
 flutter pub get
@@ -119,6 +129,13 @@ flutter devices
 # Jalanin aplikasi
 flutter run
 ```
+
+**Via Android Studio (GUI):**
+1. Buka project di Android Studio
+2. Pastikan file `main.dart` terbuka atau terpilih
+3. Di toolbar atas, pilih device target (misal: "sdk gphone64 x86 64" atau "Chrome")
+4. Klik tombol ikon **Play** (Run) warna hijau ▶️
+5. Tunggu proses build selesai (bisa lihat progress di tab "Run" di bawah)
 
 **Web:**
 ```bash
@@ -315,33 +332,108 @@ flutter test
 flutter analyze
 ```
 
+## 🌐 Deploy ke Netlify
+
+Mau deploy aplikasi ini ke Netlify biar bisa diakses online? Gampang banget! Ikutin langkah-langkah ini:
+
+### Persiapan
+
+**1. Build Web Version**
+
+```bash
+# Build production web
+flutter build web --release
+```
+
+File hasil build ada di folder `build/web/`
+
+**2. Buat File `netlify.toml`**
+
+Buat file `netlify.toml` di root project dengan isi:
+
+```toml
+[build]
+  publish = "build/web"
+  command = "flutter build web --release"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+```
+
+### Deploy via Netlify CLI
+
+**1. Install Netlify CLI**
+
+```bash
+npm install -g netlify-cli
+```
+
+**2. Login ke Netlify**
+
+```bash
+netlify login
+```
+
+**3. Deploy**
+
+```bash
+# Deploy pertama kali
+netlify deploy --prod
+
+# Pilih folder: build/web
+```
+
+### Deploy via Netlify Dashboard (Lebih Gampang!)
+
+**1. Push ke GitHub**
+
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin https://github.com/username/jadwal_piket_cerdas.git
+git push -u origin main
+```
+
+**2. Connect ke Netlify**
+
+- Buka [netlify.com](https://netlify.com)
+- Login/Sign up
+- Klik "Add new site" → "Import an existing project"
+- Pilih GitHub → Authorize Netlify
+- Pilih repository `jadwal_piket_cerdas`
+
+**3. Configure Build Settings**
+
+- **Build command:** `flutter build web --release`
+- **Publish directory:** `build/web`
+- Klik "Deploy site"
+
+**4. Done!** 🎉
+
+Netlify akan otomatis build dan deploy. Kamu akan dapat URL seperti: `https://your-app-name.netlify.app`
+
+### Tips Deployment
+
+> **Environment Variables:**
+> Kalau butuh environment variables, bisa set di Netlify Dashboard → Site settings → Environment variables
+
+> **Custom Domain:**
+> Bisa pake domain sendiri di Netlify Dashboard → Domain settings
+
+> **Auto Deploy:**
+> Setiap kali push ke GitHub, Netlify otomatis rebuild dan deploy!
+
+> **HTTPS:**
+> Netlify otomatis kasih HTTPS gratis dengan Let's Encrypt
+
 ## 👨‍💻 Author
 
 Algifahri Tri Ramadhan
 
 ## 📝 Notes
 
-Semangat sekolahnya!!
-maaffin aku atas semua yang udah terjadi, tapi hubungan kita berakhir bukan tanpa sebab.
-
-maybee,
-at that time I thought and realized that our relationship, or me, was only a hindrance to your social life.
-
-Because of me, you had to change and follow my ego. Argh, I hated myself at that time.
-I hated how my thoughts were overthinking.
-
-But believe me, it's not that easy to let go of you, and now I still miss you.
-
-Just come to me when you need help, I'm still here.
-
-Dan satu lagi, kamu dikit lagi 17 tahun yaa di februari, Happy birthday and always be a good person.
-
-maaf aku gabisa ngucapin secara real time dan di hari h
-
-
-I will always love you
-
-
-OH iya bilang aja kalau ada yang perlu ditanyain dari project ini 
----
-
+not yet

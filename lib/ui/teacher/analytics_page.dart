@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../data/db_helper.dart';
+import '../../database/db_helper.dart';
 import '../../utils/constants.dart';
 
 class TeacherAnalyticsPage extends StatefulWidget {

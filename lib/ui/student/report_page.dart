@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../data/db_helper.dart';
-import '../../data/report_model.dart';
-import '../../data/schedule_model.dart';
+import '../../database/db_helper.dart';
+import '../../database/report_model.dart';
+import '../../database/schedule_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/constants.dart';
 

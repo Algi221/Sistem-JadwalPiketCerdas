@@ -4,7 +4,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/constants.dart';
-import '../../data/db_helper.dart';
+import '../../database/db_helper.dart';
 import '../login_page.dart';
 import '../credential_viewer_page.dart';
 import 'day_detail_page.dart';

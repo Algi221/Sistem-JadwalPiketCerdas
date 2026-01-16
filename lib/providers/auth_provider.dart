@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../data/db_helper.dart';
-import '../data/user_model.dart';
+import '../database/db_helper.dart';
+import '../database/user_model.dart';
 
 class AuthProvider with ChangeNotifier {
   User? _currentUser;

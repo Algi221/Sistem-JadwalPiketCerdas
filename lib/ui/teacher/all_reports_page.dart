@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../data/db_helper.dart';
+import '../../database/db_helper.dart';
 import '../../utils/constants.dart';
 
 class AllReportsPage extends StatefulWidget {

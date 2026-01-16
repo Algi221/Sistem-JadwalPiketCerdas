@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../data/db_helper.dart';
-import '../../data/user_model.dart';
+import '../../database/db_helper.dart';
+import '../../database/user_model.dart';
 import '../../utils/constants.dart';
 
 class CredentialViewerPage extends StatefulWidget {
