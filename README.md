@@ -321,27 +321,6 @@ Algifahri Tri Ramadhan
 
 ## 📝 Notes
 
-Semangat sekolahnya!!
-maaffin aku atas semua yang udah terjadi, tapi hubungan kita berakhir bukan tanpa sebab.
-
-maybee,
-at that time I thought and realized that our relationship, or me, was only a hindrance to your social life.
-
-Because of me, you had to change and follow my ego. Argh, I hated myself at that time.
-I hated how my thoughts were overthinking.
-
-But believe me, it's not that easy to let go of you, and now I still miss you.
-
-Just come to me when you need help, I'm still here.
-
-Dan satu lagi, kamu dikit lagi 17 tahun yaa di februari, Happy birthday and always be a good person.
-
-maaf aku gabisa ngucapin secara real time dan di hari h
-
-
-I will always love you
-
-
-OH iya bilang aja kalau ada yang perlu ditanyain dari project ini 
+late, already deleted
 ---
 
