@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
@@ -7,6 +9,7 @@ import '../../database/schedule_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/constants.dart';
 import '../../utils/notification_helper.dart';
+import '../../utils/calendar_helper.dart';
 import 'report_page.dart';
 
 class StudentHomePage extends StatefulWidget {
@@ -22,7 +25,6 @@ class _StudentHomePageState extends State<StudentHomePage> {
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
   bool _hasReportToday = false;
-  final List<String> _days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
 
   @override
   void initState() {
@@ -31,94 +33,61 @@ class _StudentHomePageState extends State<StudentHomePage> {
   }
 
   Future<void> _loadData() async {
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    if (auth.currentUser?.id != null) {
-      final myScheds = await DatabaseHelper.instance.getSchedulesByUser(auth.currentUser!.id!);
-      setState(() {
-        _mySchedules = myScheds;
-      });
-      _checkTodayPiket(myScheds);
+    final user = Provider.of<AuthProvider>(context, listen: false).currentUser;
+    if (user != null && user.id != null) {
+      final mySchedules = await DatabaseHelper.instance.getSchedulesByUser(user.id!);
+      final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final hasReport = await DatabaseHelper.instance.hasReportForDate(dateStr);
+      
+      if (mounted) {
+        setState(() {
+          _mySchedules = mySchedules;
+          _hasReportToday = hasReport;
+        });
+        _loadScheduleForDate(_selectedDay);
+      }
     }
-    
-    final now = DateTime.now();
-    final dateStr = DateFormat('yyyy-MM-dd').format(now);
-    final hasReport = await DatabaseHelper.instance.hasReportForDate(dateStr);
-    
-    setState(() {
-        _hasReportToday = hasReport;
-    });
-
-    _loadScheduleForDate(_selectedDay);
   }
 
-  void _checkTodayPiket(List<Schedule> myScheds) {
-      final now = DateTime.now();
-      final dayName = DateFormat('EEEE').format(now);
-      
-      String indoDay = '';
-      switch (dayName) {
-          case 'Monday': indoDay = 'Senin'; break;
-          case 'Tuesday': indoDay = 'Selasa'; break;
-          case 'Wednesday': indoDay = 'Rabu'; break;
-          case 'Thursday': indoDay = 'Kamis'; break;
-          case 'Friday': indoDay = 'Jumat'; break;
-          default: indoDay = '';
-      }
-      
-      if (indoDay.isNotEmpty) {
-          final isPiketToday = myScheds.any((s) => s.day == indoDay);
-          if (isPiketToday) {
-              NotificationHelper().showNotification(
-                  "Jangan Lupa Piket!", 
-                  "Hari ini ($indoDay) adalah jadwal piket kamu."
-              );
-          }
-      }
-  }
-  
   Future<void> _loadScheduleForDate(DateTime date) async {
-      final dayName = DateFormat('EEEE').format(date);
-      String indoDay = '';
-      switch (dayName) {
-          case 'Monday': indoDay = 'Senin'; break;
-          case 'Tuesday': indoDay = 'Selasa'; break;
-          case 'Wednesday': indoDay = 'Rabu'; break;
-          case 'Thursday': indoDay = 'Kamis'; break;
-          case 'Friday': indoDay = 'Jumat'; break;
-          default: indoDay = '';
-      }
-      
-      if (indoDay.isNotEmpty) {
-          final scheds = await DatabaseHelper.instance.getSchedulesByDay(indoDay);
-          setState(() {
-              _classSchedules = scheds;
-          });
-      } else {
-          setState(() {
-              _classSchedules = [];
-          });
-      }
+    final dayName = DateFormat('EEEE').format(date);
+    String indoDay = _getIndonesianDay(dayName);
+    
+    final schedules = await DatabaseHelper.instance.getSchedulesByDay(indoDay);
+    if (mounted) {
+      setState(() {
+        _classSchedules = schedules;
+      });
+    }
+  }
+
+  String _getIndonesianDay(String dayName) {
+    switch (dayName) {
+      case 'Monday': return 'Senin';
+      case 'Tuesday': return 'Selasa';
+      case 'Wednesday': return 'Rabu';
+      case 'Thursday': return 'Kamis';
+      case 'Friday': return 'Jumat';
+      default: return dayName;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<AuthProvider>(context).currentUser;
-    
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Halo, ${user?.name ?? 'Siswa'}', 
-              style: AppStyles.header.copyWith(fontSize: 16, color: Colors.white)),
-            Text('Kelas 11-J', 
-              style: AppStyles.body.copyWith(fontSize: 12, color: Colors.white70)),
-          ],
-        ),
+        title: const Text('Jadwal Piket Cerdas', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: AppColors.primary,
         elevation: 0,
         actions: [
+            IconButton(
+              icon: const Icon(Icons.calendar_month_rounded, color: Colors.white, size: 22),
+              tooltip: 'Sinkron ke Kalender HP',
+              onPressed: () => _syncToCalendar(context),
+            ),
             IconButton(
               icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 22), 
               onPressed: _loadData
@@ -126,126 +95,62 @@ class _StudentHomePageState extends State<StudentHomePage> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildMyScheduleCard(),
-            const SizedBox(height: 24),
-            
-            _buildCalendarCard(),
-            const SizedBox(height: 24),
-            
-            Text("Jadwal Piket", style: AppStyles.title.copyWith(fontSize: 20)),
-            const SizedBox(height: 4),
-            Text(
-              DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(_selectedDay),
-              style: AppStyles.body.copyWith(fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            
-            _classSchedules.isEmpty 
-            ? Container(
-                padding: const EdgeInsets.all(32),
-                width: double.infinity,
-                decoration: AppStyles.cardDecoration,
-                child: Column(
-                  children: [
-                    Icon(Icons.event_busy_rounded, size: 40, color: Colors.grey.shade300),
-                    const SizedBox(height: 12),
-                    Text("Tidak ada jadwal piket", style: AppStyles.body),
-                  ],
-                ),
-              )
-            : ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _classSchedules.length,
-                itemBuilder: (context, index) {
-                    final item = _classSchedules[index];
-                    final isMe = item.userId == user?.id;
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      decoration: AppStyles.cardDecoration.copyWith(
-                        color: isMe ? AppColors.primary.withOpacity(0.08) : AppColors.surface,
-                      ),
-                      child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          leading: Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: isMe ? AppColors.primary.withOpacity(0.15) : AppColors.secondary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  "${index + 1}", 
-                                  style: TextStyle(
-                                    color: isMe ? AppColors.primary : AppColors.secondary, 
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  )
-                                ),
-                              ),
-                          ),
-                          title: Text(item.userName ?? 'Siswa', style: AppStyles.header.copyWith(fontSize: 15)),
-                          trailing: isMe 
-                              ? Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text("Saya", style: AppStyles.body.copyWith(color: Colors.white, fontSize: 12)),
-                                )
-                              : null,
-                      ),
-                    );
-                },
-            ),
+            _buildHeader(user),
+            _buildCalendar(),
+            _buildScheduleList(),
+            const SizedBox(height: 20),
+            if (_isPiketDayToday()) _buildReportButton(),
+            const SizedBox(height: 30),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCalendarCard() {
+  Widget _buildHeader(user) {
     return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
+      child: Row(
+        children: [
+          const CircleAvatar(
+            radius: 30,
+            backgroundColor: Colors.white24,
+            child: Icon(Icons.person, color: Colors.white, size: 35),
+          ),
+          const SizedBox(width: 15),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Halo, ${user?.name ?? ""}', 
+                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text('NIPD: ${user?.nipd ?? ""}', 
+                style: const TextStyle(color: Colors.white70, fontSize: 14)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalendar() {
+    return Container(
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(10),
       decoration: AppStyles.cardDecoration,
-      padding: const EdgeInsets.all(16),
       child: TableCalendar(
         firstDay: DateTime.utc(2024, 1, 1),
-        lastDay: DateTime.utc(2030, 12, 31),
+        lastDay: DateTime.utc(2025, 12, 31),
         focusedDay: _focusedDay,
         selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-        calendarFormat: CalendarFormat.month,
-        startingDayOfWeek: StartingDayOfWeek.monday,
-        headerStyle: HeaderStyle(
-          formatButtonVisible: false,
-          titleCentered: true,
-          titleTextStyle: AppStyles.header.copyWith(fontSize: 16),
-          leftChevronIcon: const Icon(Icons.chevron_left, color: AppColors.primary),
-          rightChevronIcon: const Icon(Icons.chevron_right, color: AppColors.primary),
-        ),
-        calendarStyle: CalendarStyle(
-          todayDecoration: BoxDecoration(
-            color: AppColors.secondary.withOpacity(0.3),
-            shape: BoxShape.circle,
-          ),
-          selectedDecoration: const BoxDecoration(
-            color: AppColors.primary,
-            shape: BoxShape.circle,
-          ),
-          todayTextStyle: AppStyles.body.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
-          selectedTextStyle: AppStyles.body.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
-          weekendTextStyle: AppStyles.body.copyWith(color: AppColors.error.withOpacity(0.7)),
-          outsideDaysVisible: false,
-        ),
-        daysOfWeekStyle: DaysOfWeekStyle(
-          weekdayStyle: AppStyles.body.copyWith(fontWeight: FontWeight.w600, fontSize: 12),
-          weekendStyle: AppStyles.body.copyWith(fontWeight: FontWeight.w600, fontSize: 12, color: AppColors.error.withOpacity(0.7)),
-        ),
         onDaySelected: (selectedDay, focusedDay) {
           setState(() {
             _selectedDay = selectedDay;
@@ -253,139 +158,146 @@ class _StudentHomePageState extends State<StudentHomePage> {
           });
           _loadScheduleForDate(selectedDay);
         },
-        onPageChanged: (focusedDay) {
-          _focusedDay = focusedDay;
-        },
+        calendarStyle: CalendarStyle(
+          selectedDecoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+          todayDecoration: BoxDecoration(color: AppColors.primary.withOpacity(0.3), shape: BoxShape.circle),
+        ),
+        headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true),
       ),
     );
   }
 
-  Widget _buildMyScheduleCard() {
-    if (_mySchedules.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(24),
-        width: double.infinity,
-        decoration: AppStyles.cardDecoration,
-        child: Column(
-             children: [
-                 Icon(Icons.check_circle_outline_rounded, size: 48, color: AppColors.success.withOpacity(0.7)),
-                 const SizedBox(height: 12),
-                 Text("Tidak ada jadwal piket", style: AppStyles.header.copyWith(color: AppColors.success)),
-                 const SizedBox(height: 4),
-                 Text("Anda bebas dari tugas piket minggu ini", style: AppStyles.body.copyWith(fontSize: 13)),
-             ] 
-          ),
-      );
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: AppStyles.cardDecoration.copyWith(
-        color: AppColors.primary.withOpacity(0.05),
-        border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-             children: [
-                 Container(
-                     padding: const EdgeInsets.all(10),
-                     decoration: BoxDecoration(
-                       color: AppColors.primary.withOpacity(0.15),
-                       borderRadius: BorderRadius.circular(10),
-                     ),
-                     child: const Icon(Icons.cleaning_services_rounded, color: AppColors.primary, size: 20)
-                 ),
-                 const SizedBox(width: 12),
-                 Text("Jadwal Piket Saya", style: AppStyles.header.copyWith(fontSize: 16)),
-             ],
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _mySchedules.map((s) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(20),
+  Widget _buildScheduleList() {
+    final dayName = DateFormat('EEEE', 'id_ID').format(_focusedDay);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text('Petugas Piket Hari $dayName', 
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(height: 10),
+        if (_classSchedules.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(20),
+            child: Text('Tidak ada jadwal piket hari ini'),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _classSchedules.length,
+            itemBuilder: (context, index) {
+              final schedule = _classSchedules[index];
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                padding: const EdgeInsets.all(15),
+                decoration: AppStyles.cardDecoration,
+                child: Row(
+                  children: [
+                    CircleAvatar(backgroundColor: AppColors.primary.withOpacity(0.1),
+                      child: Text((index + 1).toString(), style: TextStyle(color: AppColors.primary))),
+                    const SizedBox(width: 15),
+                    Text(schedule.userName ?? ""),
+                  ],
                 ),
-                child: Text(s.day, style: AppStyles.body.copyWith(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-            )).toList(),
+              );
+            },
           ),
-          const SizedBox(height: 16),
-          _buildReportButton(),
-        ],
-      ),
+      ],
     );
   }
 
   Widget _buildReportButton() {
-     final now = DateTime.now();
-     final dayName = DateFormat('EEEE').format(now);
-     String indoDay = '';
-     switch (dayName) {
-          case 'Monday': indoDay = 'Senin'; break;
-          case 'Tuesday': indoDay = 'Selasa'; break;
-          case 'Wednesday': indoDay = 'Rabu'; break;
-          case 'Thursday': indoDay = 'Kamis'; break;
-          case 'Friday': indoDay = 'Jumat'; break;
-     }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: SizedBox(
+        width: double.infinity,
+        height: 55,
+        child: ElevatedButton.icon(
+          onPressed: _hasReportToday ? null : () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => ReportPage(todaysSchedules: _classSchedules)));
+          },
+          icon: const Icon(Icons.camera_alt_rounded),
+          label: Text(_hasReportToday ? "Sudah Lapor" : "Lapor Piket"),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          ),
+        ),
+      ),
+    );
+  }
 
-     final isPiketToday = _mySchedules.any((s) => s.day == indoDay);
-     
-     if (isPiketToday) {
-         if (_hasReportToday) {
-             return Container(
-                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                 decoration: BoxDecoration(
-                     color: AppColors.success.withOpacity(0.15),
-                     borderRadius: BorderRadius.circular(10),
-                     border: Border.all(color: AppColors.success.withOpacity(0.3)),
-                 ),
-                 child: Row(
-                     mainAxisSize: MainAxisSize.min,
-                     children: [
-                         const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 20),
-                         const SizedBox(width: 8),
-                         Text("Laporan Terkirim", style: AppStyles.body.copyWith(color: AppColors.success, fontWeight: FontWeight.w600)),
-                     ]
-                 ),
-             );
-         } else {
-             return SizedBox(
-                 width: double.infinity,
-                 child: ElevatedButton.icon(
-                     icon: const Icon(Icons.camera_alt_rounded, size: 20),
-                     label: const Text("Lapor Piket"),
-                     style: ElevatedButton.styleFrom(
-                         backgroundColor: AppColors.primary,
-                         foregroundColor: Colors.white,
-                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                         elevation: 0,
-                     ),
-                     onPressed: () async {
-                         final todaysScheds = await DatabaseHelper.instance.getSchedulesByDay(indoDay);
-                         
-                         if (mounted) {
-                             final result = await Navigator.push(
-                                 context, 
-                                 MaterialPageRoute(builder: (_) => ReportPage(todaysSchedules: todaysScheds))
-                             );
-                             
-                             if (result == true) {
-                                 _loadData(); 
-                             }
-                         }
-                     },
-                 ),
-             );
-         }
-     }
-     
-     return const SizedBox(); 
+  bool _isPiketDayToday() {
+    final todayName = DateFormat('EEEE').format(DateTime.now());
+    String todayIndo = _getIndonesianDay(todayName);
+    return _mySchedules.any((s) => s.day == todayIndo);
+  }
+
+  Future<void> _syncToCalendar(BuildContext context) async {
+    if (kIsWeb) {
+      _showSimpleDialog(context, 'Fitur Tidak Tersedia', 'Sinkronisasi hanya bisa di HP Android/iOS.');
+      return;
+    }
+
+    if (_mySchedules.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Jadwal kamu belum ada.')));
+      return;
+    }
+
+    // MINTA IZIN DULU!
+    await Permission.calendarFullAccess.request();
+    await Permission.notification.request();
+    
+    // Khusus Android 13+, minta izin Exact Alarm
+    final alarmStatus = await Permission.scheduleExactAlarm.status;
+    if (alarmStatus.isDenied) {
+      await Permission.scheduleExactAlarm.request();
+    }
+
+    _showLoadingDialog(context);
+
+    final successCount = await CalendarHelper.addAllPiketSchedules(
+      studentName: Provider.of<AuthProvider>(context, listen: false).currentUser?.name ?? 'Siswa',
+      piketDay: _mySchedules.first.day,
+    );
+
+    if (mounted) Navigator.pop(context); // Tutup loading
+
+    if (mounted) {
+      _showSimpleDialog(context, 
+        successCount > 0 ? 'Berhasil!' : 'Gagal',
+        successCount > 0 
+          ? 'Jadwal piket & ALARM sudah disetel otomatis jam 05:45 pagi untuk 4 minggu ke depan! ⏰✨'
+          : 'Gagal sinkron. Pastikan kamu memberi izin Kalender.'
+      );
+    }
+  }
+
+  void _showLoadingDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Card(child: Padding(padding: EdgeInsets.all(24), 
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            CircularProgressIndicator(), SizedBox(height: 16), Text('Menyinkronkan...')
+          ])))),
+    );
+  }
+
+  void _showSimpleDialog(BuildContext context, String title, String content) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+      ),
+    );
   }
 }

@@ -69,7 +69,6 @@ class _HistoryPageState extends State<HistoryPage> {
                 final report = _reports[index];
                 final isPresent = report['is_present'] == 1;
                 final date = report['date'] ?? '';
-                final imagePath = report['image_path'] ?? '';
                 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 16),

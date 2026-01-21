@@ -1,0 +1,77 @@
+
+  Future<void> _syncToCalendar(BuildContext context) async {
+    final user = Provider.of<AuthProvider>(context, listen: false).currentUser;
+    
+    if (_mySchedules.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Kamu belum punya jadwal piket', style: AppStyles.body.copyWith(color: Colors.white)),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Menambahkan ke kalender...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final piketDay = _mySchedules.first.day;
+    final successCount = await CalendarHelper.addAllPiketSchedules(
+      studentName: user?.name ?? 'Siswa',
+      piketDay: piketDay,
+      weeksAhead: 4,
+    );
+
+    if (context.mounted) Navigator.pop(context);
+
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(
+                successCount > 0 ? Icons.check_circle : Icons.error,
+                color: successCount > 0 ? AppColors.secondary : AppColors.error,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                successCount > 0 ? 'Berhasil!' : 'Gagal',
+                style: AppStyles.header.copyWith(fontSize: 18),
+              ),
+            ],
+          ),
+          content: Text(
+            successCount > 0
+                ? 'Jadwal piket untuk $successCount hari ke depan sudah ditambahkan ke kalender HP kamu! 📅\n\nKamu akan dapat reminder 12 jam sebelum piket.'
+                : 'Gagal menambahkan ke kalender. Pastikan kamu memberikan izin akses kalender.',
+            style: AppStyles.body,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('OK', style: AppStyles.body.copyWith(color: AppColors.primary)),
+            ),
+          ],
+        ),
+      );
+    }
+  }
