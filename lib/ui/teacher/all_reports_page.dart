@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../database/db_helper.dart';
@@ -76,26 +77,32 @@ class _AllReportsPageState extends State<AllReportsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // placeholder gambar buat web
-                        Container(
-                          height: 180,
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: AppColors.secondary.withOpacity(0.1),
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                          ),
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.photo_camera_rounded, size: 48, color: AppColors.secondary.withOpacity(0.5)),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Foto Laporan',
-                                  style: AppStyles.body.copyWith(color: AppColors.textSecondary),
-                                ),
-                              ],
+                        // Tampilkan gambar asli (File)
+                        ClipRRect(
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                          child: Container(
+                            height: 200,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: AppColors.secondary.withOpacity(0.1),
                             ),
+                            child: imagePath.isNotEmpty
+                                ? Image.file(
+                                    File(imagePath),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Center(
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(Icons.broken_image_rounded, size: 48, color: Colors.grey),
+                                            Text('Gagal memuat gambar', style: AppStyles.body.copyWith(fontSize: 12)),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  )
+                                : const Center(child: Icon(Icons.photo_camera_rounded, size: 48)),
                           ),
                         ),
                         
@@ -229,7 +236,27 @@ class _AllReportsPageState extends State<AllReportsPage> {
                     DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(DateTime.parse(date)),
                     style: AppStyles.header.copyWith(fontSize: 16),
                   ),
+                  const SizedBox(height: 16),
+                  // Tampilkan gambar besar di modal
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      height: 250,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Image.file(
+                        File(imagePath),
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.broken_image)),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 20),
+                  Text('Daftar Kehadiran Siswa', style: AppStyles.header.copyWith(fontSize: 14, color: AppColors.textSecondary)),
+                  const SizedBox(height: 8),
                   ...details.map((detail) {
                     final studentName = detail['student_name'] as String;
                     final isPresent = detail['is_present'] == 1;

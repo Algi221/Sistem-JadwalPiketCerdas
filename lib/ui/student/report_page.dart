@@ -9,6 +9,7 @@ import '../../database/report_model.dart';
 import '../../database/schedule_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/constants.dart';
+import '../../utils/notification_helper.dart';
 
 class ReportPage extends StatefulWidget {
   final List<Schedule> todaysSchedules;
@@ -159,6 +160,9 @@ class _ReportPageState extends State<ReportPage> {
       }
 
       if (mounted) {
+          // 3. Matikan notifikasi persistent
+          await NotificationHelper().cancelNotification(888); 
+          
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Laporan berhasil dikirim!")));
           Navigator.pop(context, true); // balik dengan status sukses
       }

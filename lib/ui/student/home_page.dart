@@ -45,6 +45,25 @@ class _StudentHomePageState extends State<StudentHomePage> {
           _hasReportToday = hasReport;
         });
         _loadScheduleForDate(_selectedDay);
+
+        // --- CEK LOGIK NOTIFIKASI PERSISTENT ---
+        // Jika hari ini jadwal piket DAN belum lapor -> Tampilkan Notifikasi Wajib
+        if (_isPiketDayToday()) {
+           if (!hasReport) {
+             // ID 888 digunakan untuk Notifikasi Piket yang tidak bisa diclose
+             await NotificationHelper().showPersistentNotification(
+               888, 
+               'Peringatan Piket 🧹', 
+               'Kamu dijadwalkan piket hari ini! Segera kirim laporan untuk mematikan peringatan ini.'
+             );
+           } else {
+             // Kalau sudah lapor, hapus notifikasinya
+             await NotificationHelper().cancelNotification(888);
+           }
+        } else {
+           // Kalau bukan hari piket, pastikan tidak ada notifikasi persistent yang nyala
+           await NotificationHelper().cancelNotification(888);
+        }
       }
     }
   }
@@ -94,16 +113,20 @@ class _StudentHomePageState extends State<StudentHomePage> {
             )
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildHeader(user),
-            _buildCalendar(),
-            _buildScheduleList(),
-            const SizedBox(height: 20),
-            if (_isPiketDayToday()) _buildReportButton(),
-            const SizedBox(height: 30),
-          ],
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(), // Biar RefreshIndicator jalan
+          child: Column(
+            children: [
+              _buildHeader(user),
+              _buildCalendar(),
+              _buildScheduleList(),
+              const SizedBox(height: 20),
+              if (_isPiketDayToday()) _buildReportButton(),
+              const SizedBox(height: 30),
+            ],
+          ),
         ),
       ),
     );
@@ -136,6 +159,16 @@ class _StudentHomePageState extends State<StudentHomePage> {
                 style: const TextStyle(color: Colors.white70, fontSize: 14)),
             ],
           ),
+          const Spacer(),
+          if (_isPiketDayToday() && !_hasReportToday)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.red[100],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text('⚠️ BELUM PIKET', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 10)),
+            ),
         ],
       ),
     );
@@ -147,8 +180,8 @@ class _StudentHomePageState extends State<StudentHomePage> {
       padding: const EdgeInsets.all(10),
       decoration: AppStyles.cardDecoration,
       child: TableCalendar(
-        firstDay: DateTime.utc(2024, 1, 1),
-        lastDay: DateTime.utc(2025, 12, 31),
+        firstDay: DateTime.utc(2020, 1, 1),
+        lastDay: DateTime.utc(2030, 12, 31),
         focusedDay: _focusedDay,
         selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
         onDaySelected: (selectedDay, focusedDay) {
@@ -217,8 +250,15 @@ class _StudentHomePageState extends State<StudentHomePage> {
         width: double.infinity,
         height: 55,
         child: ElevatedButton.icon(
-          onPressed: _hasReportToday ? null : () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => ReportPage(todaysSchedules: _classSchedules)));
+          onPressed: _hasReportToday ? null : () async {
+            final result = await Navigator.push(
+              context, 
+              MaterialPageRoute(builder: (_) => ReportPage(todaysSchedules: _classSchedules))
+            );
+            
+            if (result == true) {
+              _loadData(); // Refresh data setelah lapor
+            }
           },
           icon: const Icon(Icons.camera_alt_rounded),
           label: Text(_hasReportToday ? "Sudah Lapor" : "Lapor Piket"),
@@ -249,15 +289,19 @@ class _StudentHomePageState extends State<StudentHomePage> {
       return;
     }
 
-    // MINTA IZIN DULU!
-    await Permission.calendarFullAccess.request();
-    await Permission.notification.request();
+    // MINTA IZIN SEALIGUS (Batch) untuk menghindari error "request already running"
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.calendarFullAccess,
+      Permission.notification,
+      Permission.scheduleExactAlarm, // Android 13+ but safe to ask in batch usually, or ask separately if needed
+    ].request();
+
+    // Check specific critical permissions if needed, but the helper usually handles the logic.
+    // We just want to ensure we asked them.
     
-    // Khusus Android 13+, minta izin Exact Alarm
-    final alarmStatus = await Permission.scheduleExactAlarm.status;
-    if (alarmStatus.isDenied) {
-      await Permission.scheduleExactAlarm.request();
-    }
+    // Khusus Android 13+, minta izin Exact Alarm jika belum (meski sudah diminta di batch di atas, 
+    // kadang perlu handling khusus atau check status lagi).
+    // Tapi karena sudah di batch, kita bisa lanjut.
 
     _showLoadingDialog(context);
 
